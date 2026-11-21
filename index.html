@@ -73,10 +73,95 @@
       background: #188038;
     }
 
+    .btn-history {
+      background: #f1f3f4;
+      color: #555;
+      position: relative;
+    }
+
     .btn-clear {
       background: #f1f3f4;
       color: #d93025;
     }
+
+    /* 履歴パネル */
+    #historyPanel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      width: min(320px, calc(100vw - 32px));
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      z-index: 100;
+      overflow: hidden;
+    }
+    #historyPanel.open { display: block; }
+
+    .history-header {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      border-bottom: 1px solid #f0f0f0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .history-empty {
+      padding: 20px 14px;
+      font-size: 13px;
+      color: #aaa;
+      text-align: center;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 11px 14px;
+      border-bottom: 1px solid #f5f5f5;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: #f8f9ff; }
+    .history-item:active { background: #eef2ff; }
+
+    .history-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .history-item-date {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 3px;
+    }
+    .history-item-preview {
+      font-size: 13px;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: "Menlo", "Monaco", "Courier New", monospace;
+    }
+    .history-item-chars {
+      font-size: 11px;
+      color: #bbb;
+      white-space: nowrap;
+      padding-top: 2px;
+    }
+
+    /* オーバーレイ（パネルの外クリックで閉じる） */
+    #historyOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99;
+    }
+    #historyOverlay.open { display: block; }
 
     main {
       flex: 1;
@@ -122,7 +207,7 @@
     }
 
     @media (max-width: 480px) {
-      header { padding: 10px 12px; }
+      header { padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
       h1 { font-size: 14px; }
       button { padding: 7px 11px; font-size: 12px; }
       #editor { font-size: 14px; padding: 12px; }
@@ -134,9 +219,17 @@
     <h1>プレーンメモ</h1>
     <div class="btn-group">
       <button class="btn-copy" id="btnCopy">全文コピー</button>
+      <div style="position:relative">
+        <button class="btn-history" id="btnHistory">履歴</button>
+        <div id="historyPanel">
+          <div class="history-header">消去履歴（最大3件）</div>
+          <div id="historyList"></div>
+        </div>
+      </div>
       <button class="btn-clear" id="btnClear">全消去</button>
     </div>
   </header>
+  <div id="historyOverlay"></div>
 
   <main>
     <div
@@ -149,17 +242,22 @@
   </main>
 
   <script>
-    const STORAGE_KEY = 'plain-memo-v1';
-    const editor = document.getElementById('editor');
-    const charCount = document.getElementById('charCount');
-    const btnCopy = document.getElementById('btnCopy');
-    const btnClear = document.getElementById('btnClear');
+    const STORAGE_KEY  = 'plain-memo-v1';
+    const HISTORY_KEY  = 'plain-memo-history-v1';
+    const MAX_HISTORY  = 3;
+
+    const editor        = document.getElementById('editor');
+    const charCount     = document.getElementById('charCount');
+    const btnCopy       = document.getElementById('btnCopy');
+    const btnClear      = document.getElementById('btnClear');
+    const btnHistory    = document.getElementById('btnHistory');
+    const historyPanel  = document.getElementById('historyPanel');
+    const historyList   = document.getElementById('historyList');
+    const historyOverlay = document.getElementById('historyOverlay');
 
     // --- 初期ロード ---
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      editor.textContent = saved;
-    }
+    if (saved) editor.textContent = saved;
     updateCount();
 
     // --- テキスト取得 ---
@@ -177,6 +275,76 @@
       localStorage.setItem(STORAGE_KEY, getText());
       updateCount();
     }
+
+    // --- 履歴の読み書き ---
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveHistory(hist) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+    }
+    function pushHistory(text) {
+      const hist = loadHistory();
+      hist.unshift({ text, date: new Date().toISOString() });
+      saveHistory(hist.slice(0, MAX_HISTORY));
+    }
+
+    // --- 履歴パネル描画 ---
+    function formatDate(iso) {
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function renderHistory() {
+      const hist = loadHistory();
+      if (!hist.length) {
+        historyList.innerHTML = '<div class="history-empty">履歴はありません</div>';
+        return;
+      }
+      historyList.innerHTML = hist.map((h, i) => {
+        const preview = h.text.trim().replace(/\s+/g, ' ').slice(0, 60) || '（空のメモ）';
+        const chars = h.text.replace(/\n$/, '').length;
+        return `<div class="history-item" data-index="${i}">
+          <div class="history-item-body">
+            <div class="history-item-date">${formatDate(h.date)}</div>
+            <div class="history-item-preview">${preview.replace(/</g,'&lt;')}</div>
+          </div>
+          <div class="history-item-chars">${chars}文字</div>
+        </div>`;
+      }).join('');
+
+      historyList.querySelectorAll('.history-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const idx = Number(el.dataset.index);
+          const hist = loadHistory();
+          if (!hist[idx]) return;
+          if (getText().trim()) {
+            if (!confirm('現在のメモを消去して復元しますか?')) return;
+            pushHistory(getText());
+          }
+          editor.textContent = hist[idx].text;
+          save();
+          closeHistory();
+        });
+      });
+    }
+
+    // --- 履歴パネル開閉 ---
+    function openHistory() {
+      renderHistory();
+      historyPanel.classList.add('open');
+      historyOverlay.classList.add('open');
+    }
+    function closeHistory() {
+      historyPanel.classList.remove('open');
+      historyOverlay.classList.remove('open');
+    }
+
+    btnHistory.addEventListener('click', () => {
+      historyPanel.classList.contains('open') ? closeHistory() : openHistory();
+    });
+    historyOverlay.addEventListener('click', closeHistory);
 
     // --- 貼り付け: 書式剥ぎ取り ---
     editor.addEventListener('paste', (e) => {
@@ -201,40 +369,37 @@
     // --- 全文コピー ---
     btnCopy.addEventListener('click', () => {
       const text = getText();
-      navigator.clipboard.writeText(text).then(() => {
+      const done = () => {
         btnCopy.textContent = 'コピー完了!';
         btnCopy.classList.add('copied');
         setTimeout(() => {
           btnCopy.textContent = '全文コピー';
           btnCopy.classList.remove('copied');
         }, 1800);
-      }).catch(() => {
-        // フォールバック
+      };
+      navigator.clipboard.writeText(text).then(done).catch(() => {
         const ta = document.createElement('textarea');
         ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
+        ta.style.cssText = 'position:fixed;opacity:0';
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        btnCopy.textContent = 'コピー完了!';
-        btnCopy.classList.add('copied');
-        setTimeout(() => {
-          btnCopy.textContent = '全文コピー';
-          btnCopy.classList.remove('copied');
-        }, 1800);
+        done();
       });
     });
 
-    // --- 全消去 ---
+    // --- 全消去（履歴に保存してから消す）---
     btnClear.addEventListener('click', () => {
-      if (!getText().trim()) return;
+      const text = getText();
+      if (!text.trim()) return;
       if (confirm('メモを全て消去しますか?')) {
+        pushHistory(text);
         editor.textContent = '';
         save();
       }
     });
+
     // --- Service Worker 登録 ---
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js');
