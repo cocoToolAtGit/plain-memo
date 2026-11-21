@@ -79,6 +79,15 @@
       position: relative;
     }
 
+    .btn-copy-clear {
+      background: #f1f3f4;
+      color: #b06000;
+    }
+    .btn-copy-clear.done {
+      background: #188038;
+      color: #fff;
+    }
+
     .btn-clear {
       background: #f1f3f4;
       color: #d93025;
@@ -219,6 +228,7 @@
     <h1>プレーンメモ</h1>
     <div class="btn-group">
       <button class="btn-copy" id="btnCopy">全文コピー</button>
+      <button class="btn-copy-clear" id="btnCopyClear">コピーして消去</button>
       <div style="position:relative">
         <button class="btn-history" id="btnHistory">履歴</button>
         <div id="historyPanel">
@@ -249,6 +259,7 @@
     const editor        = document.getElementById('editor');
     const charCount     = document.getElementById('charCount');
     const btnCopy       = document.getElementById('btnCopy');
+    const btnCopyClear  = document.getElementById('btnCopyClear');
     const btnClear      = document.getElementById('btnClear');
     const btnHistory    = document.getElementById('btnHistory');
     const historyPanel  = document.getElementById('historyPanel');
@@ -386,6 +397,34 @@
         document.execCommand('copy');
         document.body.removeChild(ta);
         done();
+      });
+    });
+
+    // --- コピーして消去 ---
+    btnCopyClear.addEventListener('click', () => {
+      const text = getText();
+      if (!text.trim()) return;
+      const doClipboard = navigator.clipboard
+        ? navigator.clipboard.writeText(text)
+        : Promise.resolve().then(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          });
+      doClipboard.then(() => {
+        pushHistory(text);
+        editor.textContent = '';
+        save();
+        btnCopyClear.textContent = 'コピー完了!';
+        btnCopyClear.classList.add('done');
+        setTimeout(() => {
+          btnCopyClear.textContent = 'コピーして消去';
+          btnCopyClear.classList.remove('done');
+        }, 1800);
       });
     });
 
