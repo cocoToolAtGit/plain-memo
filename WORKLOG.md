@@ -49,6 +49,44 @@ HTML/CSS/JavaScript のみで、プレーンテキスト専用のメモ帳を `i
   - `manifest.json` / `apple-touch-icon` / `favicon` リンク追加
 ---
 
+## 2026-11-23 (iPhone PWA 表示・操作性改善)
+
+**指示内容:**
+1. 「コピーして消去」ボタンを削除
+2. 履歴の各項目右側にコピーアイコン（SVG）を追加、タップで内容をコピー＋「コピーしました」トースト表示
+3. iPhoneで画面が大きく表示されズームが発生する問題を修正
+   - エディタ font-size を 16px 以上にして iOS 自動ズームを防ぐ
+   - 横はみ出し要素をなくし画面幅ぴったりに収める
+   - ヘッダー・ボタンを上固定、メモ部分だけスクロール
+   - キーボード表示時に入力行・ボタンが隠れない
+   - ノッチ・ホームバーの safe-area 対応
+   - ネイティブアプリ的な見た目（タップハイライト除去、長押しメニュー抑制など）
+4. sw.js キャッシュ名バージョンアップ・WORKLOG 追記・push
+
+**やったこと:**
+- `index.html` を全体的に書き直し:
+  - `html, body { height: 100%; overflow: hidden; }` でレイアウト固定
+  - `main { flex: 1; min-height: 0; overflow: hidden; }` → `#editor { flex: 1; min-height: 0; overflow-y: auto; }` でエディタのみスクロール
+  - `position: sticky` を廃止。header は `flex-shrink: 0` で常に上部固定
+  - エディタの `font-size: 16px`（14/15px だった）→ iOS 自動ズーム完全防止
+  - `max-width: 100vw; overflow-x: hidden` で横はみ出し防止
+  - `word-break: break-word` に変更（`break-all` は英単語も途中で折るため）
+  - safe-area: body に left/right/bottom、header の padding-top に top を吸収
+  - `-webkit-tap-highlight-color: transparent` を `*` に適用してタップ青枠を除去
+  - `-webkit-touch-callout: none; user-select: none` をボタン・ヘッダーに適用して長押しメニュー抑制（エディタはテキスト選択を維持）
+  - `touch-action: manipulation` をボタンに適用してダブルタップズーム防止
+  - 「コピーして消去」ボタン削除
+  - 履歴アイテムに SVG コピーアイコン（重なった四角2枚）を追加。タップで内容コピー→アイコンがチェックマークに変わり「コピーしました」トーストを表示
+  - 画面下部にトースト（#toast）を追加（フェードイン/アウトアニメーション）
+  - `copyText()` ヘルパー関数に共通化（全文コピー・履歴コピーで使い回し）
+- `sw.js` キャッシュ名を `plain-memo-v3` → `plain-memo-v4` にバンプ
+
+**つまずいた点:**
+- iOS で自動ズームが起きる原因は `font-size < 16px`。`@media` での 14px 上書きも同様に問題だったため削除
+- `position: sticky` は `overflow: hidden` の祖先要素があると効かないため、flex レイアウトに切り替えた
+
+---
+
 ## 2026-11-21 (SW キャッシュ修正・コピーして消去ボタン追加)
 
 **指示内容:**
