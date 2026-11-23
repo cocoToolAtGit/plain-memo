@@ -1,4 +1,4 @@
-const CACHE = 'plain-memo-v3';
+const CACHE = 'plain-memo-v4';
 const ASSETS = [
   './manifest.json',
   './icons/icon-192.png',

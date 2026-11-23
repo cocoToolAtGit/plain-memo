@@ -13,31 +13,48 @@
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ---- リセット・ネイティブ感 ---- */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f5f5f5;
-      min-height: 100dvh;
+      height: 100%;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      /* 横はみ出し防止 */
+      max-width: 100vw;
+      overflow-x: hidden;
+      /* safe area: top は header 側で吸収 */
+      padding-left:   env(safe-area-inset-left);
+      padding-right:  env(safe-area-inset-right);
       padding-bottom: env(safe-area-inset-bottom);
     }
 
+    /* ---- ヘッダー ---- */
     header {
+      flex-shrink: 0;
       background: #fff;
       border-bottom: 1px solid #e0e0e0;
-      padding: 12px 16px;
-      padding-top: calc(12px + env(safe-area-inset-top));
+      padding: 10px 14px;
+      padding-top: calc(10px + env(safe-area-inset-top));
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      gap: 6px;
+      /* 長押しメニュー・テキスト選択を抑制 */
+      -webkit-touch-callout: none;
+      user-select: none;
     }
 
     h1 {
@@ -45,47 +62,41 @@
       font-weight: 600;
       color: #333;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .btn-group {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-shrink: 0;
+      min-width: 0;
     }
 
     button {
       border: none;
       border-radius: 6px;
-      padding: 7px 14px;
+      padding: 7px 13px;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
-      transition: opacity 0.15s;
       white-space: nowrap;
+      /* タップ時のハイライト・長押し抑制 */
+      -webkit-touch-callout: none;
+      user-select: none;
+      touch-action: manipulation;
+      transition: opacity 0.1s;
     }
-    button:active { opacity: 0.7; }
+    button:active { opacity: 0.6; }
 
     .btn-copy {
       background: #1a73e8;
       color: #fff;
     }
-    .btn-copy.copied {
-      background: #188038;
-    }
+    .btn-copy.copied { background: #188038; }
 
     .btn-history {
       background: #f1f3f4;
       color: #555;
-      position: relative;
-    }
-
-    .btn-copy-clear {
-      background: #f1f3f4;
-      color: #b06000;
-    }
-    .btn-copy-clear.done {
-      background: #188038;
-      color: #fff;
     }
 
     .btn-clear {
@@ -93,63 +104,70 @@
       color: #d93025;
     }
 
-    /* 履歴パネル */
+    /* ---- 履歴パネル ---- */
+    .history-anchor {
+      position: relative;
+    }
+
     #historyPanel {
       display: none;
       position: absolute;
-      top: calc(100% + 4px);
+      top: calc(100% + 6px);
       right: 0;
-      width: min(320px, calc(100vw - 32px));
+      width: min(300px, calc(100vw - 28px));
       background: #fff;
-      border: 1px solid #e0e0e0;
-      border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-      z-index: 100;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.14);
+      z-index: 200;
       overflow: hidden;
+      -webkit-touch-callout: none;
     }
     #historyPanel.open { display: block; }
 
-    .history-header {
-      padding: 10px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #888;
-      border-bottom: 1px solid #f0f0f0;
+    .history-panel-title {
+      padding: 10px 14px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #999;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      border-bottom: 1px solid #f0f0f0;
     }
 
     .history-empty {
-      padding: 20px 14px;
+      padding: 22px 14px;
       font-size: 13px;
-      color: #aaa;
+      color: #bbb;
       text-align: center;
     }
 
     .history-item {
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 11px 14px;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 10px 10px 14px;
       border-bottom: 1px solid #f5f5f5;
-      cursor: pointer;
-      transition: background 0.1s;
     }
     .history-item:last-child { border-bottom: none; }
-    .history-item:hover { background: #f8f9ff; }
-    .history-item:active { background: #eef2ff; }
 
+    /* 本文エリア（タップで復元） */
     .history-item-body {
       flex: 1;
       min-width: 0;
+      cursor: pointer;
+      padding: 2px 0;
+      touch-action: manipulation;
     }
+    .history-item-body:active { opacity: 0.6; }
+
     .history-item-date {
       font-size: 11px;
-      color: #aaa;
-      margin-bottom: 3px;
+      color: #bbb;
+      margin-bottom: 2px;
     }
     .history-item-preview {
-      font-size: 13px;
+      font-size: 12px;
       color: #333;
       white-space: nowrap;
       overflow: hidden;
@@ -158,45 +176,67 @@
     }
     .history-item-chars {
       font-size: 11px;
-      color: #bbb;
+      color: #ccc;
       white-space: nowrap;
-      padding-top: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
     }
 
-    /* オーバーレイ（パネルの外クリックで閉じる） */
+    /* 履歴コピーボタン */
+    .btn-hcopy {
+      flex-shrink: 0;
+      background: none;
+      padding: 6px;
+      border-radius: 6px;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-hcopy:active { opacity: 0.5; }
+    .btn-hcopy.copied {
+      color: #188038;
+    }
+
+    /* オーバーレイ */
     #historyOverlay {
       display: none;
       position: fixed;
       inset: 0;
-      z-index: 99;
+      z-index: 199;
     }
     #historyOverlay.open { display: block; }
 
+    /* ---- メインエリア ---- */
     main {
       flex: 1;
+      min-height: 0;      /* flex shrink を効かせる */
       display: flex;
       flex-direction: column;
-      padding: 12px;
-      gap: 8px;
+      padding: 10px 12px;
+      gap: 6px;
+      overflow: hidden;
     }
 
     #editor {
       flex: 1;
-      min-height: calc(100dvh - 120px);
-      width: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       background: #fff;
       border: 1px solid #e0e0e0;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 14px;
+      /* 16px 以上で iOS の自動ズームを防ぐ */
       font-family: "Menlo", "Monaco", "Courier New", monospace;
-      font-size: 15px;
+      font-size: 16px;
       line-height: 1.65;
       color: #222;
-      resize: none;
       outline: none;
       white-space: pre-wrap;
-      word-break: break-all;
-      overflow-y: auto;
+      word-break: break-word;
+      /* テキスト選択は許可、長押しメニューは抑制 */
+      -webkit-touch-callout: none;
     }
     #editor:focus {
       border-color: #1a73e8;
@@ -204,22 +244,39 @@
     }
     #editor[data-placeholder]:empty::before {
       content: attr(data-placeholder);
-      color: #aaa;
+      color: #bbb;
       pointer-events: none;
     }
 
     footer {
+      flex-shrink: 0;
       text-align: right;
       font-size: 12px;
-      color: #888;
-      padding: 0 4px 4px;
+      color: #aaa;
+      padding-right: 2px;
+      user-select: none;
     }
 
-    @media (max-width: 480px) {
-      header { padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
-      h1 { font-size: 14px; }
-      button { padding: 7px 11px; font-size: 12px; }
-      #editor { font-size: 14px; padding: 12px; }
+    /* ---- トースト ---- */
+    #toast {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: rgba(30,30,30,0.88);
+      color: #fff;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 20px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 999;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 </head>
@@ -228,11 +285,10 @@
     <h1>プレーンメモ</h1>
     <div class="btn-group">
       <button class="btn-copy" id="btnCopy">全文コピー</button>
-      <button class="btn-copy-clear" id="btnCopyClear">コピーして消去</button>
-      <div style="position:relative">
+      <div class="history-anchor">
         <button class="btn-history" id="btnHistory">履歴</button>
         <div id="historyPanel">
-          <div class="history-header">消去履歴（最大3件）</div>
+          <div class="history-panel-title">消去履歴（最大3件）</div>
           <div id="historyList"></div>
         </div>
       </div>
@@ -240,6 +296,7 @@
     </div>
   </header>
   <div id="historyOverlay"></div>
+  <div id="toast"></div>
 
   <main>
     <div
@@ -252,19 +309,19 @@
   </main>
 
   <script>
-    const STORAGE_KEY  = 'plain-memo-v1';
-    const HISTORY_KEY  = 'plain-memo-history-v1';
-    const MAX_HISTORY  = 3;
+    const STORAGE_KEY = 'plain-memo-v1';
+    const HISTORY_KEY = 'plain-memo-history-v1';
+    const MAX_HISTORY = 3;
 
-    const editor        = document.getElementById('editor');
-    const charCount     = document.getElementById('charCount');
-    const btnCopy       = document.getElementById('btnCopy');
-    const btnCopyClear  = document.getElementById('btnCopyClear');
-    const btnClear      = document.getElementById('btnClear');
-    const btnHistory    = document.getElementById('btnHistory');
-    const historyPanel  = document.getElementById('historyPanel');
-    const historyList   = document.getElementById('historyList');
+    const editor         = document.getElementById('editor');
+    const charCount      = document.getElementById('charCount');
+    const btnCopy        = document.getElementById('btnCopy');
+    const btnClear       = document.getElementById('btnClear');
+    const btnHistory     = document.getElementById('btnHistory');
+    const historyPanel   = document.getElementById('historyPanel');
+    const historyList    = document.getElementById('historyList');
     const historyOverlay = document.getElementById('historyOverlay');
+    const toastEl        = document.getElementById('toast');
 
     // --- 初期ロード ---
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -287,6 +344,30 @@
       updateCount();
     }
 
+    // --- トースト ---
+    let toastTimer;
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+    }
+
+    // --- クリップボード ---
+    function copyText(text) {
+      return navigator.clipboard
+        ? navigator.clipboard.writeText(text)
+        : Promise.resolve().then(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          });
+    }
+
     // --- 履歴の読み書き ---
     function loadHistory() {
       try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
@@ -302,11 +383,20 @@
     }
 
     // --- 履歴パネル描画 ---
+    const COPY_SVG = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </svg>`;
+    const CHECK_SVG = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>`;
+
     function formatDate(iso) {
       const d = new Date(iso);
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
     }
+
     function renderHistory() {
       const hist = loadHistory();
       if (!hist.length) {
@@ -314,18 +404,20 @@
         return;
       }
       historyList.innerHTML = hist.map((h, i) => {
-        const preview = h.text.trim().replace(/\s+/g, ' ').slice(0, 60) || '（空のメモ）';
+        const preview = (h.text.trim().replace(/\s+/g, ' ').slice(0, 55) || '（空のメモ）').replace(/</g, '&lt;');
         const chars = h.text.replace(/\n$/, '').length;
-        return `<div class="history-item" data-index="${i}">
-          <div class="history-item-body">
+        return `<div class="history-item">
+          <div class="history-item-body" data-index="${i}">
             <div class="history-item-date">${formatDate(h.date)}</div>
-            <div class="history-item-preview">${preview.replace(/</g,'&lt;')}</div>
+            <div class="history-item-preview">${preview}</div>
+            <div class="history-item-chars">${chars}文字</div>
           </div>
-          <div class="history-item-chars">${chars}文字</div>
+          <button class="btn-hcopy" data-index="${i}" aria-label="コピー">${COPY_SVG}</button>
         </div>`;
       }).join('');
 
-      historyList.querySelectorAll('.history-item').forEach(el => {
+      // 復元
+      historyList.querySelectorAll('.history-item-body').forEach(el => {
         el.addEventListener('click', () => {
           const idx = Number(el.dataset.index);
           const hist = loadHistory();
@@ -337,6 +429,25 @@
           editor.textContent = hist[idx].text;
           save();
           closeHistory();
+        });
+      });
+
+      // 履歴コピー
+      historyList.querySelectorAll('.btn-hcopy').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.index);
+          const hist = loadHistory();
+          if (!hist[idx]) return;
+          copyText(hist[idx].text).then(() => {
+            btn.innerHTML = CHECK_SVG;
+            btn.classList.add('copied');
+            showToast('コピーしました');
+            setTimeout(() => {
+              btn.innerHTML = COPY_SVG;
+              btn.classList.remove('copied');
+            }, 1600);
+          });
         });
       });
     }
@@ -361,16 +472,16 @@
     editor.addEventListener('paste', (e) => {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-      selection.deleteFromDocument();
-      const range = selection.getRangeAt(0);
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      sel.deleteFromDocument();
+      const range = sel.getRangeAt(0);
       const node = document.createTextNode(text);
       range.insertNode(node);
       range.setStartAfter(node);
       range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      sel.removeAllRanges();
+      sel.addRange(range);
       save();
     });
 
@@ -379,56 +490,17 @@
 
     // --- 全文コピー ---
     btnCopy.addEventListener('click', () => {
-      const text = getText();
-      const done = () => {
+      copyText(getText()).then(() => {
         btnCopy.textContent = 'コピー完了!';
         btnCopy.classList.add('copied');
         setTimeout(() => {
           btnCopy.textContent = '全文コピー';
           btnCopy.classList.remove('copied');
         }, 1800);
-      };
-      navigator.clipboard.writeText(text).then(done).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        done();
       });
     });
 
-    // --- コピーして消去 ---
-    btnCopyClear.addEventListener('click', () => {
-      const text = getText();
-      if (!text.trim()) return;
-      const doClipboard = navigator.clipboard
-        ? navigator.clipboard.writeText(text)
-        : Promise.resolve().then(() => {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.cssText = 'position:fixed;opacity:0';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-          });
-      doClipboard.then(() => {
-        pushHistory(text);
-        editor.textContent = '';
-        save();
-        btnCopyClear.textContent = 'コピー完了!';
-        btnCopyClear.classList.add('done');
-        setTimeout(() => {
-          btnCopyClear.textContent = 'コピーして消去';
-          btnCopyClear.classList.remove('done');
-        }, 1800);
-      });
-    });
-
-    // --- 全消去（履歴に保存してから消す）---
+    // --- 全消去 ---
     btnClear.addEventListener('click', () => {
       const text = getText();
       if (!text.trim()) return;
